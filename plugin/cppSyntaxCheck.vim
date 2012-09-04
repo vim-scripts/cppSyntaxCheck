@@ -15,6 +15,9 @@ endif
 if(!exists("g:cpp_compiler"))
   let g:cpp_compiler='g++ -Wall '
 endif
+if(!exists("g:enable_warning"))
+  let g:enable_warning=0
+endif
 
 sign define GCCError text=>> texthl=Error
 sign define GCCWarning text=>> texthl=Todo
@@ -43,33 +46,46 @@ function! s:ShowErrC()
     endif
     let item={}
     let item["lnum"]=tmp_split[1]
-    let item["text"] = tmp_split[len(tmp_split)-1] . tmp_split[len(tmp_split)-2]
+    let item["text"] = tmp_split[len(tmp_split)-2] . ":" . tmp_split[len(tmp_split)-1]
     let g:error_list[item.lnum]=item
     execute "sign place"  g:next_sign_id "line=" . item.lnum "name=GCCError " "file=" . expand("%:p")
     let g:next_sign_id += 1
   endfor
 
   "show warning
-  let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path . ' 2>&1 '  . '|grep warning|grep ' . file_name
-  let compile_result=system(compile_cmd)
-  let line_list=split(compile_result, '\n')
-  for warning_str in line_list
-    let tmp_split=split(warning_str,':')
-    if len(tmp_split) < 3
-      continue
-    endif
-    let item={}
-    let item["lnum"]=tmp_split[1]
-    let item["text"] = tmp_split[len(tmp_split)-1] . tmp_split[len(tmp_split)-2]
-    let g:warning_list[item.lnum]=item
-    execute "sign place"  g:next_sign_id "line=" . item.lnum "name=GCCWarning " "file=" . expand("%:p")
-    let g:next_sign_id += 1
-  endfor
+  if g:enable_warning!=0
+    let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path . ' 2>&1 '  . '|grep warning|grep ' . file_name
+    let compile_result=system(compile_cmd)
+    let line_list=split(compile_result, '\n')
+    for warning_str in line_list
+      let tmp_split=split(warning_str,':')
+      if len(tmp_split) < 3
+        continue
+      endif
+      let item={}
+      let item["lnum"]=tmp_split[1]
+      let item["text"] = tmp_split[len(tmp_split)-2] . ":" . tmp_split[len(tmp_split)-1]
+      let g:warning_list[item.lnum]=item
+      execute "sign place"  g:next_sign_id "line=" . item.lnum "name=GCCWarning " "file=" . expand("%:p")
+      let g:next_sign_id += 1
+    endfor
+  endif
 
   "remove file created
   let rm_cmd='rm .tmpobject'
   call system(rm_cmd)
 
+endfunction
+
+function! ShowCompile()
+  let buf_name=bufname("%")
+  let dir_tree=split(buf_name, '/')
+  let file_name=dir_tree[len(dir_tree)-1]
+  let include_path=substitute(g:include_path, ':', " -I", "g")
+  let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path
+  echo compile_cmd
+  let compile_result=system(compile_cmd)
+  echo compile_result
 endfunction
 
 "Clear the dictionary of error
