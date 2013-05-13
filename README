@@ -1,5 +1,11 @@
 This is a mirror of http://www.vim.org/scripts/script.php?script_id=4205
 
-I always hope the vim can be more powerful to compare with visual studio, even consider microsoft have their intelligence to show us whether there are syntax errors. It is impossiple for me to work out another intelligence, but I work out a way to using the compiler, you do not need statically checking tool like splint, just the g++ compiler
 This a script use g++ as a parser to check the syntax of cpp source code, and show where the errors and warnings are. Installion is in a easy way and everytime you save the file, syntax errors and warnings are showed.
+You can also check errors in quickfix window by using command :cw
 See the install details for install guide, if you find any bugs or method to make it better, please contact me using e-mail: phonzia@gmail.com
+
+Key binding:
+<Leader>s      go to next signed error or warning line
+
+You can also download it from github:
+https://github.com/phonzia/cppSyntaxCheck.git
