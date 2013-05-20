@@ -26,7 +26,7 @@ sign define GCCError text=>> texthl=Error
 sign define GCCWarning text=>> texthl=Todo
 let g:error_list = {}
 let g:warning_list = {}
-let g:buffe_name=''
+let g:buffer_name=''
 
 function! s:ShowErrC()
     call s:ClearErr()
@@ -37,17 +37,28 @@ function! s:ShowErrC()
     let file_name=dir_tree[len(dir_tree)-1]
     let include_path=substitute(g:include_path, ':', " -I", "g")
 
-    "show error
-"    let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path . ' 2>&1 '  . '|grep error|grep ' . file_name
-    let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path . '  2>&1 | grep -v function >.err'
-    let compile_result=system(compile_cmd)
-    execute 'silent cfile .err' 
+    "show error    
+    let buf_name_split=split(file_name, '\.')
+    if ( 'h' == buf_name_split[len(buf_name_split)-1] )
+        let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' 
+                    \. g:compile_flag . ' ' . include_path . 
+                    \'     >.err 2>&1'
+    elseif ('hpp' == buf_name_split[len(buf_name_split)-1])
+        let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' 
+                    \. g:compile_flag . ' ' . include_path . 
+                    \'     >.err 2>&1'
+    else
+        let compile_cmd=g:cpp_compiler . ' -x c++ -fsyntax-only ' . buf_name . ' ' 
+                    \. g:compile_flag . ' ' . include_path . 
+                    \'     >.err 2>&1'
+    endif
+    call system(compile_cmd)
     let show_cmd = 'cat .err |grep error|grep ' .file_name
     let compile_result=system(show_cmd)
     let line_list=split(compile_result, '\n')
 
     for error_str in line_list
-"        echo error_str
+    "echo error_str
         let split_list=split(error_str,':')
         if len(split_list) < 3
             continue
@@ -62,8 +73,8 @@ function! s:ShowErrC()
     "show warning
     if g:enable_warning!=0
         let b:warning_list={}
-        let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path . ' 2>&1 '  . '|grep warning|grep ' . file_name
-        let compile_result=system(compile_cmd)
+        let show_cmd = 'cat .err |grep warning|grep ' .file_name
+        let compile_result=system(show_cmd)
         let line_list=split(compile_result, '\n')
         for warning_str in line_list
             let split_list=split(warning_str,':')
@@ -78,40 +89,15 @@ function! s:ShowErrC()
         endfor
     endif
     call s:SignErrWarn()
+    if ( len(b:error_list) > 0 )
+        execute 'silent cfile .err' 
+    elseif ( len(b:warning_list) > 0 )
+        execute 'silent cfile .err' 
+    endif
 
     "remove file created
-    let rm_cmd='rm .tmpobject .err'
+    let rm_cmd='rm .err .tmpobject > /dev/null 2>&1'
     call system(rm_cmd)
-endfunction
-
-function! ShowCompile()
-    let buf_name=bufname("%")
-    let dir_tree=split(buf_name, '/')
-    let file_name=dir_tree[len(dir_tree)-1]
-    let include_path=substitute(g:include_path, ':', " -I", "g")
-    let compile_cmd=g:cpp_compiler . ' -o .tmpobject -c ' . buf_name . ' ' . g:compile_flag . ' ' . include_path
-    echo compile_cmd
-    let compile_result=system(compile_cmd)
-    echo compile_result
-endfunction
-
-function! GotoNextSign()
-    if ( b:next_sign_id != 0 )
-        if (!exists("b:signcursor"))
-            let b:signcursor = 1
-        else
-            let b:signcursor += 1
-        endif
-            let buf_name=bufname("%")
-        if(b:signcursor <= b:next_sign_id - 1)
-            let cmd = "sign jump ". b:signcursor. " file=" . buf_name
-            execute cmd
-        else
-            let b:signcursor = 1
-            let cmd = "sign jump ". b:signcursor. " file=" . buf_name
-            execute cmd
-        endif
-    endif
 endfunction
 
 "Clear the dictionary of error
@@ -154,7 +140,7 @@ endfunction
 "Show syntax error
 function! s:ShowErrMsg()
     let buf_name=bufname("%")
-    if buf_name!=g:buffe_name
+    if buf_name!=g:buffer_name
         call s:SignErrWarn()
         if has_key(g:error_list, buf_name)
             let b:error_list=get(g:error_list, buf_name)
@@ -166,7 +152,7 @@ function! s:ShowErrMsg()
         else
             let b:warning_list={}
         endif
-        let g:buffe_name=buf_name
+        let g:buffer_name=buf_name
     endif
     let pos=getpos(".")
     if has_key(b:error_list, pos[1])
@@ -174,7 +160,7 @@ function! s:ShowErrMsg()
         if ( len(item.text) < g:longest_text )
             echo item.text
         else
-            echo "!!!A error should be showed here, but the error information is too long"
+            echo strpart( item.text, 0 ,g:longest_text )
         endif
     else
         echo
@@ -184,7 +170,7 @@ function! s:ShowErrMsg()
         if ( len(item.text) < g:longest_text )
             echo item.text
         else
-            echo "!!!A warning should be showed here, but the error information is too long"
+            echo strpart( item.text, 0 ,g:longest_text )
         endif
     else
         echo
@@ -194,4 +180,4 @@ endfunction
 autocmd BufWritePost *.cpp,*.c,*.h,*.hpp,*.cc call s:ShowErrC()
 autocmd CursorHold *.cpp,*.h,*.c,*.hpp,*.cc call s:ShowErrMsg()
 autocmd CursorMoved *.cpp,*.h,*.c,*.hpp,*.cc call s:ShowErrMsg()
-map <Leader>s :call GotoNextSign()<cr>
+map <Leader>s :cn<cr>
